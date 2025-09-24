@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/md5"
 	"debug/macho"
 	"debug/pe"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 )
@@ -53,30 +57,76 @@ func checkMachOArchitecture(filePath string) (string, error) {
 	}
 }
 
+func MD5FileStream(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	hashBytes := hash.Sum(nil)
+	return hex.EncodeToString(hashBytes), nil
+}
+
 func main() {
 	fmt.Printf("操作系统: %s\n", runtime.GOOS)
 	fmt.Printf("架构: %s\n", runtime.GOARCH)
 
-	// 判断具体架构
-	switch runtime.GOARCH {
-	case "amd64":
-		fmt.Println("这是 64 位 Windows (x86-64)")
-	case "386":
-		fmt.Println("这是 32 位 Windows (x86)")
-	case "arm64":
-		fmt.Println("这是 ARM64 Windows")
-	default:
-		fmt.Printf("未知架构: %s\n", runtime.GOARCH)
-	}
-
 	var bit string
 	var err error
 	bit, err = checkExeArchitecture(filepath.Join("1.0.41", "windows", "adb.exe"))
-	fmt.Println(bit, err)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("windows adb架构:", bit)
+	}
+	bit, err = checkMachOArchitecture(filepath.Join("1.0.41", "darwin", "adb"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("darwin adb架构:", bit)
+	}
+	bit, err = checkMachOArchitecture(filepath.Join("1.0.41", "linux", "adb"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("linux adb架构:", bit)
+	}
 
-	bit, err = checkMachOArchitecture(filepath.Join("1.0.41", "darwin", "amd64", "adb"))
-	fmt.Println(bit, err)
-
-	bit, err = checkMachOArchitecture(filepath.Join("1.0.41", "darwin", "arm64", "adb"))
-	fmt.Println(bit, err)
+	var sum string
+	sum, err = MD5FileStream(filepath.Join("1.0.41", "windows", "adb.exe"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("windows adb sum:", sum) // cdde1e5edb57c8f82627a5bde94b0591
+	}
+	sum, err = MD5FileStream(filepath.Join("1.0.41", "windows", "AdbWinApi.dll"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("windows AdbWinApi sum:", sum) // ed5a809dc0024d83cbab4fb9933d598d
+	}
+	sum, err = MD5FileStream(filepath.Join("1.0.41", "windows", "AdbWinUsbApi.dll"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("windows AdbWinUsbApi sum:", sum) // 0e24119daf1909e398fa1850b6112077
+	}
+	sum, err = MD5FileStream(filepath.Join("1.0.41", "darwin", "adb"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("darwin adb sum:", sum) // f40ca3a5d903b9741cabafda838abc09
+	}
+	sum, err = MD5FileStream(filepath.Join("1.0.41", "linux", "adb"))
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("linux adb sum:", sum) // 930847adb8cc12623a2f712d30a5592b
+	}
 }
